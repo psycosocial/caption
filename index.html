@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My AI Caption Generator (English)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+        .loader {
+            width: 18px; height: 18px;
+            border: 2px solid #FFF;
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        textarea::-webkit-scrollbar { width: 6px; }
+        textarea::-webkit-scrollbar-track { background: transparent; }
+        textarea::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="glass w-full max-w-md rounded-3xl shadow-xl overflow-hidden flex flex-col my-4">
+        
+        <!-- Header -->
+        <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-white/50">
+            <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fa-solid fa-bolt text-yellow-500"></i>
+                AI Caption Gen
+            </h1>
+        </div>
+
+        <div class="p-6 flex flex-col gap-5">
+            
+            <!-- 1. Input Area -->
+            <div>
+                <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Upload Foto</label>
+                <div class="relative group mb-3">
+                    <input type="file" id="imageInput" accept="image/*" class="hidden">
+                    
+                    <div id="dropZone" class="w-full h-48 border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center cursor-pointer bg-white hover:border-indigo-400 hover:bg-indigo-50 transition-all duration-300 relative overflow-hidden">
+                        
+                        <div id="uploadPlaceholder" class="text-center p-6 transition-opacity duration-300">
+                            <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-2 shadow-sm group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-image text-lg"></i>
+                            </div>
+                            <p class="text-gray-600 font-medium text-xs">Klik untuk Upload Foto</p>
+                        </div>
+
+                        <img id="imagePreview" class="absolute inset-0 w-full h-full object-cover hidden" alt="Preview">
+                        
+                        <div id="changeOverlay" class="absolute bottom-3 left-1/2 transform -translate-x-1/2 hidden z-10">
+                            <span class="bg-black/60 text-white text-[10px] font-bold px-3 py-1.5 rounded-full backdrop-blur-md border border-white/20">
+                                Ganti Foto
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Atau Tulis Deskripsi Foto</label>
+                    <textarea id="imageDescription" class="w-full text-sm p-3 rounded-2xl border border-gray-200 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all bg-white text-gray-700 resize-none h-20" placeholder="Contoh: Seorang wanita sedang berdiri mengenakan bikini warna putih di dalam kamar..."></textarea>
+                </div>
+            </div>
+
+            <!-- 2. Settings (Tone) -->
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Vibe Caption</label>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="setTone('flirty')" class="tone-btn active px-3 py-2.5 text-xs rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 font-bold transition-all text-center shadow-sm" data-tone="Flirty, Playful, and Alluring">
+                        😘 Flirty
+                    </button>
+                    <button onclick="setTone('cool')" class="tone-btn px-3 py-2.5 text-xs rounded-xl border border-gray-200 text-gray-500 font-medium transition-all hover:bg-gray-50 text-center" data-tone="Cool, Short, Aesthetic, Baddie energy">
+                        😎 Cool
+                    </button>
+                    <button onclick="setTone('funny')" class="tone-btn px-3 py-2.5 text-xs rounded-xl border border-gray-200 text-gray-500 font-medium transition-all hover:bg-gray-50 text-center" data-tone="Funny, Witty, Sarcastic">
+                        🤣 Lucu
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. Generate Button -->
+            <button id="generateBtn" class="w-full bg-black hover:bg-gray-800 text-white font-bold py-4 rounded-xl shadow-lg shadow-gray-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span>Buat Caption (English)</span>
+                <span id="loadingSpinner" class="loader hidden"></span>
+            </button>
+
+            <!-- 4. Result Area -->
+            <div id="resultArea" class="hidden flex-col gap-3 pt-2">
+                <div id="captionsContainer" class="flex flex-col gap-3"></div>
+            </div>
+
+            <!-- FOOTER -->
+            <div class="mt-4 pt-4 border-t border-gray-100 text-center">
+                <p class="text-red-500 font-bold text-sm tracking-wide">Idra CakepZ @ 2026</p>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- SCRIPT UTAMA -->
+    <script>
+        // ==========================================
+        // 🔴 GANTI DENGAN URL API VPS KAMU 🔴
+        // Contoh: http://123.456.78.90:3000/api/generate-caption
+        const VPS_API_URL = "http://103.14.77.71:3000/api/generate-caption"; 
+        // ==========================================
+
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('imageInput');
+        const preview = document.getElementById('imagePreview');
+        const placeholder = document.getElementById('uploadPlaceholder');
+        const generateBtn = document.getElementById('generateBtn');
+        const resultArea = document.getElementById('resultArea');
+        const captionsContainer = document.getElementById('captionsContainer');
+        const changeOverlay = document.getElementById('changeOverlay');
+        const descInput = document.getElementById('imageDescription');
+
+        let selectedFile = null;
+        let selectedTone = "Flirty, Playful, and Alluring";
+        let base64ImageStr = null;
+        let imageMimeType = null;
+
+        // Image Handling
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            selectedFile = file;
+            imageMimeType = file.type;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                // Simpan format base64 saja (tanpa header 'data:image/jpeg;base64,')
+                base64ImageStr = e.target.result.split(',')[1]; 
+
+                preview.classList.remove('hidden');
+                placeholder.classList.add('opacity-0');
+                changeOverlay.classList.remove('hidden');
+                dropZone.classList.add('border-indigo-400');
+                resultArea.classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        window.setTone = (toneType) => {
+            document.querySelectorAll('.tone-btn').forEach(btn => {
+                btn.classList.remove('bg-indigo-50', 'text-indigo-700', 'border-indigo-200', 'font-bold');
+                btn.classList.add('text-gray-500', 'border-gray-200', 'font-medium');
+            });
+            const activeBtn = event.currentTarget;
+            activeBtn.classList.remove('text-gray-500', 'border-gray-200', 'font-medium');
+            activeBtn.classList.add('bg-indigo-50', 'text-indigo-700', 'border-indigo-200', 'font-bold');
+            selectedTone = activeBtn.getAttribute('data-tone');
+        };
+
+        generateBtn.addEventListener('click', async () => {
+            const descText = descInput.value.trim();
+
+            if (VPS_API_URL === "http://YOUR_VPS_IP:3000/api/generate-caption") {
+                alert("⚠️ Error: Tolong ganti YOUR_VPS_IP dengan IP VPS-mu di dalam kode script.");
+                return;
+            }
+            
+            if (!selectedFile && !descText) {
+                alert("📸 Upload foto ATAU ketik deskripsi fotonya dulu ya!");
+                return;
+            }
+
+            generateBtn.disabled = true;
+            generateBtn.querySelector('span').innerText = "Thinking in English...";
+            document.getElementById('loadingSpinner').classList.remove('hidden');
+            resultArea.classList.add('hidden');
+            captionsContainer.innerHTML = '';
+
+            try {
+                // Kirim request ke Backend VPS
+                const response = await fetch(VPS_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        imageBase64: base64ImageStr,
+                        mimeType: imageMimeType,
+                        description: descText,
+                        tone: selectedTone
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || "Gagal menghubungi VPS");
+                }
+
+                displayResults(data.text);
+
+            } catch (error) {
+                console.error("API Error:", error);
+                alert("❌ Gagal Generate! Pastikan VPS kamu berjalan dan IP-nya benar.\n\nDetail: " + error.message);
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.querySelector('span').innerText = "Buat Caption Lagi";
+                document.getElementById('loadingSpinner').classList.add('hidden');
+            }
+        });
+
+        function displayResults(rawText) {
+            let options = rawText.split('|||').filter(c => c.trim().length > 0);
+
+            options.forEach(option => {
+                let parts = option.split('~~~');
+                
+                let englishCaption = parts[0] ? parts[0].trim().replace(/^[\d-]+\.\s*/, '').replace(/"/g, '') : '';
+                let indoCaption = parts[1] ? parts[1].trim().replace(/^[\d-]+\.\s*/, '').replace(/"/g, '') : '';
+
+                if (!parts[1] && option.includes('\n')) {
+                    const lines = option.trim().split('\n').filter(l => l.trim() !== '');
+                    if (lines.length >= 2) {
+                        englishCaption = lines[0].trim().replace(/^[\d-]+\.\s*/, '').replace(/"/g, '');
+                        indoCaption = lines.slice(1).join(' ').trim().replace(/^[\d-]+\.\s*/, '').replace(/"/g, '');
+                    }
+                }
+
+                if (!englishCaption) return;
+
+                const div = document.createElement('div');
+                div.className = "bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all relative group cursor-pointer active:scale-[0.99]";
+                
+                div.innerHTML = `
+                    <div class="pr-8">
+                        <p class="text-gray-800 text-[15px] leading-relaxed font-bold font-sans mb-1">${englishCaption}</p>
+                        ${indoCaption ? `<p class="text-gray-500 text-[13px] leading-relaxed italic border-t border-gray-100 mt-2 pt-2">${indoCaption}</p>` : ''}
+                    </div>
+                    <div class="absolute top-4 right-4 text-gray-300 group-hover:text-indigo-500 transition-colors">
+                        <i class="fa-regular fa-copy text-lg"></i>
+                    </div>
+                `;
+                
+                div.addEventListener('click', function() {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = englishCaption;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        const icon = this.querySelector('i');
+                        icon.className = "fa-solid fa-check text-green-500 text-lg";
+                        setTimeout(() => icon.className = "fa-regular fa-copy text-lg", 1500);
+                    } catch (err) {
+                        console.error('Gagal copy teks', err);
+                    }
+                    document.body.removeChild(textArea);
+                });
+                
+                captionsContainer.appendChild(div);
+            });
+            
+            resultArea.classList.remove('hidden');
+            resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    </script>
+</body>
+</html>
